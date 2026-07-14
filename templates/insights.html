@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Data Insights{% endblock %}
+
+{% block content %}
+<section class="insights-page">
+  <h1>Data insights</h1>
+  <p class="lede">
+    Exploratory analysis of the {{ metrics.n_countries }}-country dataset the model was
+    trained on. Regenerate these figures any time with <code>python eda.py</code>.
+  </p>
+
+  <div class="card">
+    <h2>Correlation matrix</h2>
+    <p class="muted">
+      Every indicator is strongly and positively correlated with HDI &mdash; mean years of
+      schooling most of all (0.91). The indicators are also correlated with
+      <em>each other</em>, which is exactly what you would expect: health, education and
+      income tend to rise together.
+    </p>
+    <img src="{{ url_for('static', filename='images/heatmap.png') }}" alt="Correlation heatmap of the HDI indicators">
+  </div>
+
+  <div class="card">
+    <h2>HDI against each indicator</h2>
+    <p class="muted">
+      The income panel is the interesting one. Its relationship with HDI curves rather
+      than running straight &mdash; development rises steeply across low incomes and then
+      flattens. That curve is why the model is fitted on <strong>log</strong> GNI, and
+      fixing it took the model from 88.7% to {{ metrics.accuracy_pct }}% accuracy.
+    </p>
+    <img src="{{ url_for('static', filename='images/scatterplots.png') }}" alt="Scatter plots of HDI against each indicator">
+  </div>
+
+  <div class="card">
+    <h2>Life expectancy by development tier</h2>
+    <p class="muted">
+      The tiers separate cleanly on health outcomes, but the bands overlap at their
+      edges &mdash; no single indicator determines a country's tier on its own.
+    </p>
+    <img src="{{ url_for('static', filename='images/stripplot.png') }}" alt="Strip plot of life expectancy by development tier">
+  </div>
+
+  <div class="card">
+    <h2>Indicator distributions</h2>
+    <p class="muted">
+      Life expectancy and schooling are roughly bell-shaped. Income is heavily
+      right-skewed &mdash; a long tail of wealthy outliers pulls the mean far above the
+      median, another argument for the log transform.
+    </p>
+    <img src="{{ url_for('static', filename='images/distributions.png') }}" alt="Distribution plots of the four indicators">
+  </div>
+
+  <div class="card">
+    <h2>Model coefficients</h2>
+    <p class="muted">
+      What the fitted linear regression actually learned. Holding everything else fixed,
+      each extra unit of an indicator moves the predicted HDI by its coefficient.
+    </p>
+    <table class="input-table">
+      {% for name, coef in metrics.coefficients.items() %}
+      <tr>
+        <td>{{ name.replace('_', ' ') }}</td>
+        <td class="num">{{ "%+.6f"|format(coef) }}</td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td>Intercept</td>
+        <td class="num">{{ "%+.6f"|format(metrics.intercept) }}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Performance</h2>
+    <table class="input-table">
+      <tr><td>R&sup2; (test set)</td><td class="num">{{ metrics.r2_test }}</td></tr>
+      <tr><td>R&sup2; (training set)</td><td class="num">{{ metrics.r2_train }}</td></tr>
+      <tr><td>5-fold cross-validated R&sup2;</td><td class="num">{{ metrics.cv_r2 }}</td></tr>
+      <tr><td>Mean absolute error</td><td class="num">{{ metrics.mae }}</td></tr>
+      <tr><td>Root mean squared error</td><td class="num">{{ metrics.rmse }}</td></tr>
+    </table>
+    <p class="muted">
+      Training and test R&sup2; sit close together and the cross-validated score is stable
+      across folds, so the model is generalising rather than memorising.
+    </p>
+  </div>
+</section>
+{% endblock %}

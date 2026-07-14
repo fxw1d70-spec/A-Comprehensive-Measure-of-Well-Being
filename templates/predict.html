@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Predict HDI{% endblock %}
+
+{% block content %}
+<section class="form-page">
+  <h1>Predict an HDI score</h1>
+  <p class="lede">
+    Enter the four indicators, or pick a country to autofill its real values from the
+    UNDP dataset and see how close the model lands.
+  </p>
+
+  {% if errors %}
+  <div class="alert" role="alert">
+    <strong>Please fix the following:</strong>
+    <ul>
+      {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('predict') }}" class="card form">
+    <div class="field">
+      <label for="country">Autofill from a country <span class="optional">(optional)</span></label>
+      <select id="country" name="country">
+        <option value="">-- Enter values manually --</option>
+        {% for c in countries %}
+        <option value="{{ c }}" {% if form and form.country == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+      <small>Selecting a country fills the fields below with its real reported indicators.</small>
+    </div>
+
+    <hr class="divider">
+
+    <div class="field">
+      <label for="life_expectancy">Life expectancy at birth <span class="unit">years</span></label>
+      <input type="number" step="0.1" min="20" max="100" id="life_expectancy"
+             name="life_expectancy" required placeholder="e.g. 76.5"
+             value="{{ form.life_expectancy if form else '' }}">
+      <small>Typical range: 52 &ndash; 85</small>
+    </div>
+
+    <div class="field">
+      <label for="expected_schooling">Expected years of schooling <span class="unit">years</span></label>
+      <input type="number" step="0.1" min="0" max="25" id="expected_schooling"
+             name="expected_schooling" required placeholder="e.g. 14.2"
+             value="{{ form.expected_schooling if form else '' }}">
+      <small>Typical range: 5 &ndash; 21</small>
+    </div>
+
+    <div class="field">
+      <label for="mean_schooling">Mean years of schooling <span class="unit">years</span></label>
+      <input type="number" step="0.1" min="0" max="20" id="mean_schooling"
+             name="mean_schooling" required placeholder="e.g. 8.7"
+             value="{{ form.mean_schooling if form else '' }}">
+      <small>Typical range: 2 &ndash; 14. Cannot exceed expected years of schooling.</small>
+    </div>
+
+    <div class="field">
+      <label for="gni">GNI per capita <span class="unit">2017 PPP $</span></label>
+      <input type="number" step="1" min="100" max="200000" id="gni"
+             name="gni" required placeholder="e.g. 17030"
+             value="{{ form.gni if form else '' }}">
+      <small>Typical range: $700 &ndash; $90,000</small>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-block">Predict HDI</button>
+  </form>
+</section>
+
+<script>
+  // Autofill the indicator fields when a country is picked.
+  document.getElementById('country').addEventListener('change', async (e) => {
+    const country = e.target.value;
+    if (!country) return;
+
+    try {
+      const res = await fetch(`/api/country/${encodeURIComponent(country)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+
+      // A few countries have gaps in the source data; leave those fields
+      // untouched rather than writing "null" into the input.
+      const fields = {
+        life_expectancy: data.life_expectancy,
+        expected_schooling: data.expected_schooling,
+        mean_schooling: data.mean_schooling,
+        gni: data.gni,
+      };
+      for (const [id, value] of Object.entries(fields)) {
+        if (value !== null) document.getElementById(id).value = value;
+      }
+    } catch (err) {
+      // Network failure -- the user can still fill the form by hand.
+    }
+  });
+</script>
+{% endblock %}

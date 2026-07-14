@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Prediction Result{% endblock %}
+
+{% block content %}
+<section class="result-page">
+  <div class="card result-card {{ tier.css_class }}">
+    <p class="result-eyebrow">
+      {% if country %}Predicted HDI for {{ country }}{% else %}Predicted HDI{% endif %}
+    </p>
+    <div class="result-score">{{ "%.3f"|format(score) }}</div>
+    <div class="result-tier">{{ tier.label }} Human Development</div>
+
+    <div class="scale">
+      <div class="scale-track">
+        <div class="scale-seg low"></div>
+        <div class="scale-seg medium"></div>
+        <div class="scale-seg high"></div>
+        <div class="scale-seg very-high"></div>
+        <div class="scale-marker" style="left: {{ (score * 100)|round(1) }}%">
+          <span class="marker-dot"></span>
+        </div>
+      </div>
+      <div class="scale-labels">
+        <span>0.0</span><span>0.55</span><span>0.70</span><span>0.80</span><span>1.0</span>
+      </div>
+    </div>
+
+    <p class="result-desc">{{ tier.description }}</p>
+  </div>
+
+  <div class="card">
+    <h2>What drove this score</h2>
+    <p class="muted">
+      Each indicator's share of the model's total positive contribution. The largest
+      bar is the dimension carrying this score; the smallest is where the biggest
+      development gap sits.
+    </p>
+    <div class="drivers">
+      {% for d in drivers %}
+      <div class="driver">
+        <div class="driver-head">
+          <span class="driver-name">{{ d.name }}</span>
+          <span class="driver-pct">{{ d.pct }}%</span>
+        </div>
+        <div class="driver-track">
+          <div class="driver-fill" style="width: {{ d.pct }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Your inputs</h2>
+    <table class="input-table">
+      <tr>
+        <td>Life expectancy</td>
+        <td class="num">{{ inputs.life_expectancy }} years</td>
+      </tr>
+      <tr>
+        <td>Expected years of schooling</td>
+        <td class="num">{{ inputs.expected_schooling }} years</td>
+      </tr>
+      <tr>
+        <td>Mean years of schooling</td>
+        <td class="num">{{ inputs.mean_schooling }} years</td>
+      </tr>
+      <tr>
+        <td>GNI per capita</td>
+        <td class="num">${{ "{:,.0f}".format(inputs.gni) }}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="result-actions">
+    <a class="btn btn-primary" href="{{ url_for('predict') }}">Predict another</a>
+    <a class="btn btn-ghost" href="{{ url_for('insights') }}">See the data insights</a>
+  </div>
+
+  <p class="disclaimer">
+    Predicted by linear regression (R&sup2; = {{ metrics.r2_test }}, mean absolute error
+    &plusmn;{{ metrics.mae }}). Treat the score as an estimate, not an official UNDP figure.
+  </p>
+</section>
+{% endblock %}
