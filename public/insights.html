@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Insights &mdash; HDI Predictor</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="nav">
+    <a class="brand" href="/"><span class="brand-mark">HDI</span> Predictor</a>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/predict">Predict</a>
+      <a href="/insights">Insights</a>
+    </div>
+  </nav>
+
+  <main>
+    <section class="insights-page">
+      <h1>Data insights</h1>
+      <p class="lede">
+        Exploratory analysis of the dataset the model was trained on.
+        Regenerate these figures any time with <code>python eda.py</code>.
+      </p>
+
+      <div class="card">
+        <h2>Correlation matrix</h2>
+        <p class="muted">
+          Every indicator is strongly and positively correlated with HDI &mdash; mean years of
+          schooling most of all (0.91). The indicators are also correlated with
+          <em>each other</em>, which is exactly what you would expect: health, education and
+          income tend to rise together.
+        </p>
+        <img src="/images/heatmap.png" alt="Correlation heatmap of the HDI indicators">
+      </div>
+
+      <div class="card">
+        <h2>HDI against each indicator</h2>
+        <p class="muted">
+          The income panel is the interesting one. Its relationship with HDI curves rather
+          than running straight &mdash; development rises steeply across low incomes and then
+          flattens. That curve is why the model is fitted on <strong>log</strong> GNI, and
+          fixing it took the model from 88.7% to 95.6% accuracy.
+        </p>
+        <img src="/images/scatterplots.png" alt="Scatter plots of HDI against each indicator">
+      </div>
+
+      <div class="card">
+        <h2>Life expectancy by development tier</h2>
+        <p class="muted">
+          The tiers separate cleanly on health outcomes, but the bands overlap at their
+          edges &mdash; no single indicator determines a country's tier on its own.
+        </p>
+        <img src="/images/stripplot.png" alt="Strip plot of life expectancy by development tier">
+      </div>
+
+      <div class="card">
+        <h2>Indicator distributions</h2>
+        <p class="muted">
+          Life expectancy and schooling are roughly bell-shaped. Income is heavily
+          right-skewed &mdash; a long tail of wealthy outliers pulls the mean far above the
+          median, another argument for the log transform.
+        </p>
+        <img src="/images/distributions.png" alt="Distribution plots of the four indicators">
+      </div>
+
+      <div class="card">
+        <h2>Model coefficients</h2>
+        <p class="muted">
+          What the fitted linear regression actually learned. Holding everything else fixed,
+          each extra unit of an indicator moves the predicted HDI by its coefficient. These
+          are the exact numbers running in your browser right now.
+        </p>
+        <table class="input-table" id="coef-table"></table>
+      </div>
+
+      <div class="card">
+        <h2>Performance</h2>
+        <table class="input-table" id="perf-table"></table>
+        <p class="muted">
+          Training and test R&sup2; sit close together and the cross-validated score is stable
+          across folds, so the model is generalising rather than memorising.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p id="footer-text">Linear Regression &middot; Indicator data from the UNDP Human Development Report 2021&ndash;22</p>
+  </footer>
+
+  <script type="module">
+    import { MODEL } from "/js/app.js";
+    const m = MODEL.metrics;
+    const c = MODEL.coefficients;
+
+    document.getElementById("footer-text").textContent =
+      `Linear Regression · R² ${m.r2_test} · Trained on ${m.n_countries} countries · Indicator data from the UNDP Human Development Report 2021–22`;
+
+    const names = {
+      life_expectancy: "Life Expectancy",
+      expected_schooling: "Expected Years Schooling",
+      mean_schooling: "Mean Years Schooling",
+      gni_log: "GNI (log)",
+    };
+    const fmt = (n) => (n >= 0 ? "+" : "") + n.toFixed(6);
+
+    const rows = Object.entries(c)
+      .map(([k, v]) => `<tr><td>${names[k]}</td><td class="num">${fmt(v)}</td></tr>`)
+      .join("");
+    document.getElementById("coef-table").innerHTML =
+      rows + `<tr><td>Intercept</td><td class="num">${fmt(MODEL.intercept)}</td></tr>`;
+
+    document.getElementById("perf-table").innerHTML = `
+      <tr><td>R² (test set)</td><td class="num">${m.r2_test}</td></tr>
+      <tr><td>R² (training set)</td><td class="num">${m.r2_train}</td></tr>
+      <tr><td>5-fold cross-validated R²</td><td class="num">${m.cv_r2}</td></tr>
+      <tr><td>Mean absolute error</td><td class="num">${m.mae}</td></tr>
+      <tr><td>Root mean squared error</td><td class="num">${m.rmse}</td></tr>`;
+  </script>
+  <script type="module" src="/js/analytics.js"></script>
+</body>
+</html>

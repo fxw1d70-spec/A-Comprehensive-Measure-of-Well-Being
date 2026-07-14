@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Predict HDI &mdash; HDI Predictor</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="nav">
+    <a class="brand" href="/"><span class="brand-mark">HDI</span> Predictor</a>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/predict">Predict</a>
+      <a href="/insights">Insights</a>
+    </div>
+  </nav>
+
+  <main>
+    <section class="form-page">
+      <h1>Predict an HDI score</h1>
+      <p class="lede">
+        Enter the four indicators, or pick a country to autofill its real values from the
+        UNDP dataset and see how close the model lands.
+      </p>
+
+      <div class="alert" id="errors" role="alert" hidden>
+        <strong>Please fix the following:</strong>
+        <ul id="error-list"></ul>
+      </div>
+
+      <form id="form" class="card form" novalidate>
+        <div class="field">
+          <label for="country">Autofill from a country <span class="optional">(optional)</span></label>
+          <select id="country" name="country">
+            <option value="">-- Enter values manually --</option>
+          </select>
+          <small>Selecting a country fills the fields below with its real reported indicators.</small>
+        </div>
+
+        <hr class="divider">
+
+        <div class="field">
+          <label for="life_expectancy">Life expectancy at birth <span class="unit">years</span></label>
+          <input type="number" step="0.1" id="life_expectancy" name="life_expectancy" placeholder="e.g. 76.5">
+          <small>Typical range: 52 &ndash; 85</small>
+        </div>
+
+        <div class="field">
+          <label for="expected_schooling">Expected years of schooling <span class="unit">years</span></label>
+          <input type="number" step="0.1" id="expected_schooling" name="expected_schooling" placeholder="e.g. 14.2">
+          <small>Typical range: 5 &ndash; 21</small>
+        </div>
+
+        <div class="field">
+          <label for="mean_schooling">Mean years of schooling <span class="unit">years</span></label>
+          <input type="number" step="0.1" id="mean_schooling" name="mean_schooling" placeholder="e.g. 8.7">
+          <small>Typical range: 2 &ndash; 14. Cannot exceed expected years of schooling.</small>
+        </div>
+
+        <div class="field">
+          <label for="gni">GNI per capita <span class="unit">2017 PPP $</span></label>
+          <input type="number" step="1" id="gni" name="gni" placeholder="e.g. 17030">
+          <small>Typical range: $700 &ndash; $90,000</small>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Predict HDI</button>
+      </form>
+
+      <div id="result" hidden></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p id="footer-text">Linear Regression &middot; Indicator data from the UNDP Human Development Report 2021&ndash;22</p>
+  </footer>
+
+  <script type="module">
+    import { predict, classify, validate, drivers, COUNTRIES, MODEL } from "/js/app.js";
+
+    const m = MODEL.metrics;
+    document.getElementById("footer-text").textContent =
+      `Linear Regression · R² ${m.r2_test} · Trained on ${m.n_countries} countries · Indicator data from the UNDP Human Development Report 2021–22`;
+
+    const select = document.getElementById("country");
+    for (const c of COUNTRIES) {
+      const opt = document.createElement("option");
+      opt.value = opt.textContent = c.name;
+      select.appendChild(opt);
+    }
+
+    const FIELDS = ["life_expectancy", "expected_schooling", "mean_schooling", "gni"];
+    const KEY = { life_expectancy: "le", expected_schooling: "es", mean_schooling: "ms", gni: "gni" };
+
+    select.addEventListener("change", (e) => {
+      const c = COUNTRIES.find((x) => x.name === e.target.value);
+      if (!c) return;
+      // Some countries have gaps in the source data; leave those fields alone
+      // rather than writing "null" into the input.
+      for (const f of FIELDS) {
+        if (c[KEY[f]] !== null) document.getElementById(f).value = c[KEY[f]];
+      }
+    });
+
+    const errorsBox = document.getElementById("errors");
+    const errorList = document.getElementById("error-list");
+    const resultBox = document.getElementById("result");
+
+    document.getElementById("form").addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      const values = {};
+      for (const f of FIELDS) {
+        const raw = document.getElementById(f).value.trim();
+        values[f] = raw === "" ? "" : Number(raw);
+      }
+
+      const errors = validate(values);
+      if (errors.length) {
+        errorList.innerHTML = "";
+        for (const err of errors) {
+          const li = document.createElement("li");
+          li.textContent = err;
+          errorList.appendChild(li);
+        }
+        errorsBox.hidden = false;
+        resultBox.hidden = true;
+        errorsBox.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+      errorsBox.hidden = true;
+
+      const score = predict(values);
+      const tier = classify(score);
+      const country = select.value;
+
+      resultBox.innerHTML = `
+        <div class="card result-card ${tier.cssClass}">
+          <p class="result-eyebrow">${country ? "Predicted HDI for " + esc(country) : "Predicted HDI"}</p>
+          <div class="result-score">${score.toFixed(3)}</div>
+          <div class="result-tier">${tier.label} Human Development</div>
+          <div class="scale">
+            <div class="scale-track">
+              <div class="scale-seg low"></div>
+              <div class="scale-seg medium"></div>
+              <div class="scale-seg high"></div>
+              <div class="scale-seg very-high"></div>
+              <div class="scale-marker" style="left:${(score * 100).toFixed(1)}%">
+                <span class="marker-dot"></span>
+              </div>
+            </div>
+            <div class="scale-labels">
+              <span>0.0</span><span>0.55</span><span>0.70</span><span>0.80</span><span>1.0</span>
+            </div>
+          </div>
+          <p class="result-desc">${tier.description}</p>
+        </div>
+
+        <div class="card">
+          <h2>What drove this score</h2>
+          <p class="muted">Each indicator's share of the model's total positive contribution.
+            The largest bar is the dimension carrying this score; the smallest is where the
+            biggest development gap sits.</p>
+          <div class="drivers">
+            ${drivers(values).map((d) => `
+              <div class="driver">
+                <div class="driver-head">
+                  <span class="driver-name">${d.name}</span>
+                  <span class="driver-pct">${d.pct}%</span>
+                </div>
+                <div class="driver-track">
+                  <div class="driver-fill" style="width:${d.pct}%"></div>
+                </div>
+              </div>`).join("")}
+          </div>
+        </div>
+
+        <p class="disclaimer">
+          Predicted by linear regression (R² = ${m.r2_test}, mean absolute error ±${m.mae}).
+          Treat the score as an estimate, not an official UNDP figure.
+        </p>`;
+
+      resultBox.hidden = false;
+      resultBox.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    // Country names come from our own dataset, but this is user-selectable text
+    // being interpolated into HTML -- escape it rather than trust it.
+    function esc(s) {
+      const d = document.createElement("div");
+      d.textContent = s;
+      return d.innerHTML;
+    }
+  </script>
+  <script type="module" src="/js/analytics.js"></script>
+</body>
+</html>

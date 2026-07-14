@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HDI Predictor</title>
+  <meta name="description" content="Predict a country's Human Development Index from life expectancy, schooling and income.">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="nav">
+    <a class="brand" href="/"><span class="brand-mark">HDI</span> Predictor</a>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/predict">Predict</a>
+      <a href="/insights">Insights</a>
+    </div>
+  </nav>
+
+  <main>
+    <section class="hero">
+      <span class="pill">Machine Learning &middot; scikit-learn &middot; Firebase</span>
+      <h1>Predict a country's <em>Human Development Index</em></h1>
+      <p class="lede">
+        The HDI measures development by what people can actually do and be &mdash; how long
+        they live, how much they learn, and what they can afford &mdash; rather than by
+        economic growth alone. Enter four indicators and the model predicts the HDI score
+        and its development tier.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="/predict">Make a prediction</a>
+        <a class="btn btn-ghost" href="/insights">Explore the data</a>
+      </div>
+    </section>
+
+    <section class="stats">
+      <div class="stat">
+        <div class="stat-value" id="stat-acc">&mdash;</div>
+        <div class="stat-label">Model accuracy (R&sup2;)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="stat-mae">&mdash;</div>
+        <div class="stat-label">Mean absolute error</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="stat-n">&mdash;</div>
+        <div class="stat-label">Countries in training data</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">4</div>
+        <div class="stat-label">Input indicators</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>The four dimensions</h2>
+      <div class="dimensions">
+        <div class="dimension">
+          <div class="dim-icon health">&#9825;</div>
+          <h3>Life Expectancy</h3>
+          <p>Years a newborn is expected to live. The health dimension &mdash; a direct proxy
+            for nutrition, sanitation and access to medical care.</p>
+        </div>
+        <div class="dimension">
+          <div class="dim-icon edu">&#9998;</div>
+          <h3>Expected Years of Schooling</h3>
+          <p>Years of education a child entering school today can expect to receive.
+            It measures a country's <em>future</em> educational capacity.</p>
+        </div>
+        <div class="dimension">
+          <div class="dim-icon edu">&#9737;</div>
+          <h3>Mean Years of Schooling</h3>
+          <p>Average years of education already completed by adults over 25. It measures
+            the educational stock a country holds <em>today</em>.</p>
+        </div>
+        <div class="dimension">
+          <div class="dim-icon income">&#9878;</div>
+          <h3>GNI per Capita (PPP)</h3>
+          <p>Income per person, adjusted for purchasing power. Enters the model as
+            <strong>log</strong> income &mdash; the first $1,000 transforms a life;
+            the 60,000th barely registers.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>The four development tiers</h2>
+      <div class="tier-bar">
+        <div class="tier-seg low">
+          <span class="tier-name">Low</span><span class="tier-range">below 0.550</span>
+        </div>
+        <div class="tier-seg medium">
+          <span class="tier-name">Medium</span><span class="tier-range">0.550 &ndash; 0.699</span>
+        </div>
+        <div class="tier-seg high">
+          <span class="tier-name">High</span><span class="tier-range">0.700 &ndash; 0.799</span>
+        </div>
+        <div class="tier-seg very-high">
+          <span class="tier-name">Very High</span><span class="tier-range">0.800 and above</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p id="footer-text">Linear Regression &middot; Indicator data from the UNDP Human Development Report 2021&ndash;22</p>
+  </footer>
+
+  <script type="module">
+    import { MODEL } from "/js/app.js";
+    const m = MODEL.metrics;
+    document.getElementById("stat-acc").textContent = m.accuracy_pct + "%";
+    document.getElementById("stat-mae").textContent = m.mae;
+    document.getElementById("stat-n").textContent = m.n_countries;
+    document.getElementById("footer-text").textContent =
+      `Linear Regression · R² ${m.r2_test} · Trained on ${m.n_countries} countries · Indicator data from the UNDP Human Development Report 2021–22`;
+  </script>
+  <script type="module" src="/js/analytics.js"></script>
+</body>
+</html>

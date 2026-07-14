@@ -1,10 +1,30 @@
 # Human Development Index (HDI) Predictor
 
-A Flask web application that predicts a country's Human Development Index from four
+A web application that predicts a country's Human Development Index from four
 indicators — life expectancy, expected years of schooling, mean years of schooling, and
 GNI per capita — and classifies it into one of the UNDP's four development tiers.
 
-Built with Python, scikit-learn, Flask, pandas, matplotlib and seaborn.
+**Live: https://measure-of-well-being.web.app**
+
+Built with Python, scikit-learn, Flask, pandas, matplotlib and seaborn, and deployed as a
+static site on Firebase Hosting.
+
+## Two ways to run it
+
+The project ships in two forms, both driven by the *same* trained model:
+
+| | Where | How the model runs |
+|---|---|---|
+| **Flask app** (`app.py`) | Local | Python unpickles `model/hdi_model.pkl` and predicts server-side |
+| **Static site** (`public/`) | Firebase Hosting | The coefficients are exported to JS and predict in the browser |
+
+Firebase Hosting serves static files only — it cannot execute Python, so the Flask app
+can't be deployed there as-is. The usual fix is Cloud Functions, but that needs a paid
+Blaze plan, and here it's unnecessary: **a linear regression is just its coefficients.**
+The entire model is four numbers and an intercept, so `build_static.py` exports them to
+`public/js/model.js` and the prediction runs client-side in a few lines of JavaScript.
+No server, no cold starts, no billing plan — and `test_static.mjs` verifies the browser
+reproduces the Python model's predictions exactly, to three decimals.
 
 ## Quick start
 
@@ -18,6 +38,20 @@ python app.py          # serve at http://127.0.0.1:5000
 
 The trained model is committed, so you can skip straight to `python app.py` if you just
 want to run the app. Run `python test_app.py` to verify everything end to end.
+
+## Deploying
+
+Retraining changes the coefficients, so **rebuild the static bundle before deploying** or
+the live site will keep serving the old model:
+
+```bash
+python train_model.py    # retrain -> model/metrics.json
+python build_static.py   # export coefficients -> public/js/model.js
+node test_static.mjs     # assert the JS matches Python exactly
+firebase deploy --only hosting
+```
+
+`build_static.py` is the only thing that writes `public/js/model.js`. Don't hand-edit it.
 
 ## Model performance
 
@@ -64,10 +98,27 @@ eda.py                 EDA: strip plots, distributions, heatmap, scatter, pairpl
 train_model.py         Preprocessing -> Linear Regression -> pickle
 app.py                 Flask app (routes, validation, tier classification)
 model/                 Serialised model, label encoder, metrics.json
-templates/             Home, prediction form, result, insights
+templates/             Flask templates: home, prediction form, result, insights
 static/                CSS + generated EDA figures
-test_app.py            End-to-end checks
+test_app.py            End-to-end checks for the Flask app
+
+build_static.py        Exports the model to JS + copies assets into public/
+public/                The deployed static site
+  js/model.js            GENERATED — coefficients + country data
+  js/app.js              Prediction, validation, tiers (mirrors app.py)
+  js/analytics.js        Firebase Analytics
+firebase.json          Hosting config
+test_static.mjs        Asserts the JS model matches the Python model exactly
 ```
+
+### A note on the Firebase API key
+
+`public/js/analytics.js` contains the Firebase web config, including `apiKey`, in plain
+text. That is correct and intended: **Firebase web API keys are public identifiers, not
+secrets.** They identify the project to Google's servers and are visible in every Firebase
+web app's bundle. Access is controlled by Firebase Security Rules and by API key
+restrictions in the Google Cloud console — not by hiding the key. There is nothing to
+rotate here.
 
 ## Pipeline
 
